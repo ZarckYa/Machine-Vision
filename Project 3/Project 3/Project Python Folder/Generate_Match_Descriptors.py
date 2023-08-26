@@ -1,0 +1,69 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+
+import numpy as np
+from scipy.ndimage import filters
+from PIL import Image
+import imutils
+import matplotlib.pylab as plt
+
+
+
+# Convert all points into vectors.
+def Vectors_Descriptors(image, interestPoints):
+    # Define a width to frame a small region
+    width = 5
+    # Define a descriptor to store all interesting points
+    descriptors = []
+    
+    # Use the width return a small region and store it in list
+    # Normalize all vector points
+    for point in interestPoints:
+        vector = image[point[0] - width:point[0] + width + 1,point[1] - width:point[1] + width + 1].flatten()
+        vector -= np.mean(vector)
+        vector /= np.linalg.norm(vector)
+        descriptors.append(vector)
+    
+    return descriptors
+
+
+# In[53]:
+
+
+# Match all points in both pictures.
+def Match_Descriptors(descriptors1, descriptors2):
+    # Set a 0.95 threshold to filte most of useless points
+    threshold = 0.95
+    
+    # Define 2 array to store 2 insteresting regions
+    descriptors1 = np.array(descriptors1).astype('float32')
+    descriptors2 = np.array(descriptors2).astype('float32')
+    
+    # Calculate the dot of two descript array.
+    # Find the maximum values of array1, array2 and the dot product
+    Response_matrix = np.dot(descriptors1, descriptors2.T)
+    max1 = descriptors1.max()
+    max2 = descriptors2.max()
+    Max_elem_martix = Response_matrix.max()
+    
+    # Initial, non-thresholded dot product - compared with the thresholded version below
+    originalMatrix = Image.fromarray(Response_matrix * 255)
+    
+    # Setting a pair array and stores all matrix position
+    Points_pairs = []
+    for r in range(Response_matrix.shape[0]):
+        First_colum_value = Response_matrix[r, 0]
+        for c in range(Response_matrix.shape[1]):
+            if (Response_matrix[r, c] > threshold) and (Response_matrix [r, c] > First_colum_value):
+                Points_pairs.append((r,c))
+            else:
+                Response_matrix[r, c] = 0
+                
+    # Compare the above matrix with the new, thresholded matrix    
+    Thresholded_matrix = Image.fromarray(Response_matrix * 255)
+    
+    # In order: Maximum of array1, maximum of array2, maximum of Dot Product,
+    # Image before thresholding, Image after thresholding and Pairs list
+    return max1, max2, Max_elem_martix, originalMatrix, Thresholded_matrix, Points_pairs
+

@@ -1,0 +1,63 @@
+#!/usr/bin/env python
+# coding: utf-8
+
+
+import numpy as np
+from scipy.ndimage import filters
+from PIL import Image
+import imutils
+import matplotlib.pylab as plt
+
+
+# Get gaussian filters.
+def HarrisMatrix(image, sigma = 2): #sigma is always 2
+    Lx = np.zeros(image.shape)
+    filters.gaussian_filter(image, 1, (0,1), output = Lx)
+    Ly = np.zeros(image.shape)
+    filters.gaussian_filter(image, 1, (1,0), output = Ly)
+    
+    # Compute the components of the Harris matrix - used to find Trace and Determinant below
+    A = filters.gaussian_filter(Lx * Lx, sigma)
+    B = filters.gaussian_filter(Lx * Ly, sigma)
+    C = filters.gaussian_filter(Ly * Ly, sigma)
+    
+    # Find the Trace and Detminant - used to calculate R
+    determinantM = (A * C) - (B ** 2)
+    traceM = (A + C)
+    
+    return determinantM / traceM
+
+
+
+"Find Harris corner points above a threshold and perform nonmax suppression in the region +/- minimumDistance."
+def findHarrisPoints(Harris_image):
+    # Define a minimum distance between the points
+    Minimum_distance = 10
+    # Define a threshold to filte the points below 0.9 max value
+    threshold = 0.1
+    
+    # To get top points above a threshold(0.9) times max value
+    cornerThreshold = Harris_image.max() * threshold
+    Image_thresholded = (Harris_image > cornerThreshold)
+    
+    # Convert list value into array and delete all nonzero value
+    # Return the location(position) of the Harri points in orihinal image 
+    coordinates = np.array(Image_thresholded.nonzero()).T
+    candidateValues = np.array([Harris_image[c[0],c[1]] for c in coordinates])
+    
+    # Return the indeces and sort array as increasing order
+    indices = np.argsort(candidateValues)
+    
+    # Store the allowed point locations in a Boolean Image and guarantee the the minmum distance between points bigger than 10
+    Pure_locations = np.zeros(Harris_image.shape, dtype = 'bool')
+    Pure_locations[Minimum_distance:-Minimum_distance, Minimum_distance:-Minimum_distance] = True
+    
+    # Select the best points using nonmax suppression based on the allowedLocations array
+    filteredCoordinates = []
+    for i in indices[::-1]:
+        r, c = coordinates[i]
+        if Pure_locations[r, c]:
+            filteredCoordinates.append((r, c))
+            Pure_locations[r-Minimum_distance:r+Minimum_distance, c-Minimum_distance:c+Minimum_distance] = False
+            
+    return filteredCoordinates
